@@ -1,58 +1,102 @@
 // Wait until the document is fully loaded
 document.addEventListener('DOMContentLoaded', () => {
-    console.log("Cakra PWA Loaded");
-
+    const notesContainer = document.getElementById('notes-container');
     const addNoteButton = document.getElementById('add-note-btn');
+    const STORAGE_KEY = 'cakra-notes';
 
-    addNoteButton.addEventListener('click', () => {
-        // Prompt the user to enter a new note
-        const noteText = prompt("Masukkan catatan baru:");
+    // Function to get notes from localStorage
+    function getNotes() {
+        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+    }
 
-        if (noteText) { // If the user entered text and didn't cancel
-            addNoteToDOM(noteText);
+    // Function to save notes to localStorage
+    function saveNotes(notes) {
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
+    }
+
+    // Function to render all notes to the DOM
+    function renderNotes() {
+        const notes = getNotes();
+        // Clear a container before rendering new list
+        notesContainer.innerHTML = ''; 
+
+        if (notes.length === 0) {
+            notesContainer.innerHTML = '<p class="placeholder-text">Belum ada catatan. Tekan tombol + untuk memulai.</p>';
+        } else {
+            notes.forEach(note => {
+                const noteCard = createNoteCard(note);
+                notesContainer.appendChild(noteCard); // append, so older notes are at the top
+            });
         }
-    });
+    }
 
-    function addNoteToDOM(text) {
-        const notesContainer = document.getElementById('notes-container');
-        const placeholder = document.querySelector('.placeholder-text');
-
-        // Remove placeholder if it exists
-        if (placeholder) {
-            placeholder.remove();
-        }
-
-        // Create the card element
+    // Function to create a note card element
+    function createNoteCard(note) {
         const noteCard = document.createElement('div');
         noteCard.className = 'note-card';
+        noteCard.dataset.id = note.id; // Store note id in the element
 
-        // Create the content paragraph
         const noteContent = document.createElement('p');
         noteContent.className = 'note-content';
-        noteContent.textContent = text;
+        noteContent.textContent = note.text;
 
-        // Create the actions container
         const noteActions = document.createElement('div');
         noteActions.className = 'note-actions';
         
-        // Create the copy button
         const copyButton = document.createElement('button');
         copyButton.className = 'action-btn';
         copyButton.textContent = 'Salin';
         copyButton.addEventListener('click', () => {
-            navigator.clipboard.writeText(text).then(() => {
+            navigator.clipboard.writeText(note.text).then(() => {
                 alert('Teks berhasil disalin!');
             }).catch(err => {
                 console.error('Gagal menyalin teks: ', err);
             });
         });
+        
+        const deleteButton = document.createElement('button');
+        deleteButton.className = 'action-btn';
+        deleteButton.textContent = 'Hapus';
+        deleteButton.style.color = '#dc3545'; // Make delete button red
+        deleteButton.addEventListener('click', () => {
+            if (confirm('Anda yakin ingin menghapus catatan ini?')) {
+                deleteNote(note.id);
+            }
+        });
 
-        // Add elements to the card
         noteActions.appendChild(copyButton);
+        noteActions.appendChild(deleteButton);
         noteCard.appendChild(noteContent);
         noteCard.appendChild(noteActions);
-
-        // Add the new card to the container
-        notesContainer.prepend(noteCard); // prepend to add new notes at the top
+        
+        return noteCard;
     }
+    
+    // Function to add a new note
+    function addNote() {
+        const noteText = prompt("Masukkan catatan baru:");
+        if (noteText && noteText.trim() !== '') {
+            const notes = getNotes();
+            const newNote = {
+                id: Date.now().toString(), // Simple unique ID
+                text: noteText
+            };
+            // Add new note to the beginning of the array
+            notes.unshift(newNote); 
+            saveNotes(notes);
+            renderNotes();
+        }
+    }
+    
+    // Function to delete a note
+    function deleteNote(id) {
+        let notes = getNotes();
+        notes = notes.filter(note => note.id !== id);
+        saveNotes(notes);
+        renderNotes();
+    }
+
+    // Initial setup
+    addNoteButton.addEventListener('click', addNote);
+    renderNotes(); // Load and display notes when the app starts
 });
