@@ -156,7 +156,7 @@ document.addEventListener('DOMContentLoaded', () => {
         keyErrorMessage.classList.remove('hidden');
     }
 
-    loginBtn.addEventListener('click', () => auth.signInWithPopup(googleProvider));
+    loginBtn.addEventListener('click', () => auth.signInWithRedirect(googleProvider));
     logoutBtn.addEventListener('click', () => auth.signOut());
 
     // --- FIRESTORE & CORE LOGIC ---
