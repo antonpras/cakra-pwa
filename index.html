@@ -4,12 +4,13 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Cakra</title>
+    <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&family=Source+Code+Pro&display=swap" rel="stylesheet">
-    
+    <!-- Highlight.js for Code Snippets -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
-
+    <!-- Our Files -->
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
 </head>
@@ -18,30 +19,57 @@
         <h1>Cakra</h1>
     </header>
 
-    <main id="notes-container">
-        </main>
+    <!-- Filter Container -->
+    <div id="filter-container"></div>
 
+    <main id="notes-container"></main>
+
+    <!-- Floating Action Button -->
     <div class="fab-container">
-        <button id="add-note-btn" title="Tambah Catatan Baru">+</button>
+        <button id="add-note-btn" title="Tambah Entri Baru">+</button>
     </div>
 
+    <!-- Modal for Adding/Editing Notes -->
     <div id="modal-overlay" class="hidden">
         <div id="modal-content">
-            <h2 id="modal-title">Tambah Catatan Baru</h2>
+            <h2 id="modal-title">Tambah Entri Baru</h2>
             <form id="note-form">
                 <div class="form-group">
-                    <label for="note-type">Jenis Catatan</label>
+                    <label for="note-type">Jenis Entri</label>
                     <select id="note-type" required>
-                        <option value="TEXT">Teks Biasa</option>
-                        <option value="PASSWORD">Sandi</option>
-                        <option value="CODE">Kode</option>
-                        <option value="TOTP">Kode Autentikator (TOTP)</option>
+                        <option value="LOGIN">Login / Sandi</option>
+                        <option value="TEXT">Catatan Teks</option>
+                        <option value="TOTP">Kode Autentikator</option>
+                        <option value="CODE">Potongan Kode</option>
                     </select>
                 </div>
                 <div class="form-group">
-                    <label for="note-text" id="note-text-label">Isi Catatan</label>
-                    <textarea id="note-text" rows="4" required></textarea>
+                    <label for="note-title">Judul (cth: Akun Google)</label>
+                    <input type="text" id="note-title" required autocomplete="off">
                 </div>
+                <div class="form-group">
+                    <label for="note-tags">Label (pisahkan dengan koma)</label>
+                    <input type="text" id="note-tags" placeholder="kerja, sosmed, penting">
+                </div>
+                
+                <!-- Fields for LOGIN type -->
+                <div id="login-fields" class="hidden">
+                    <div class="form-group">
+                        <label for="note-website">Website (Opsional)</label>
+                        <input type="url" id="note-website" placeholder="https://google.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="note-username">Username / Email</label>
+                        <input type="text" id="note-username" autocomplete="off">
+                    </div>
+                </div>
+                
+                <!-- Generic content field -->
+                <div class="form-group">
+                    <label for="note-content" id="content-label">Konten</label>
+                    <textarea id="note-content" rows="4" required></textarea>
+                </div>
+
                 <div class="form-actions">
                     <button type="button" id="cancel-btn">Batal</button>
                     <button type="submit" id="save-btn">Simpan</button>
@@ -50,9 +78,10 @@
         </div>
     </div>
 
+    <!-- JavaScript Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/otpauth@9.2.2/dist/otpauth.umd.min.js"></script>
-    
+    <!-- Our App Logic -->
     <script src="app.js"></script>
 </body>
 </html>

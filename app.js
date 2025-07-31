@@ -1,21 +1,28 @@
 document.addEventListener('DOMContentLoaded', () => {
-    // --- GLOBAL VARIABLES & CONSTANTS ---
+    // --- ELEMENT SELECTORS ---
     const notesContainer = document.getElementById('notes-container');
     const addNoteButton = document.getElementById('add-note-btn');
     const modalOverlay = document.getElementById('modal-overlay');
-    const modalContent = document.getElementById('modal-content');
     const noteForm = document.getElementById('note-form');
     const modalTitle = document.getElementById('modal-title');
     const cancelBtn = document.getElementById('cancel-btn');
     const noteTypeSelect = document.getElementById('note-type');
-    const noteTextInput = document.getElementById('note-text');
-    const noteTextLabel = document.getElementById('note-text-label');
+    const noteTitleInput = document.getElementById('note-title');
+    const noteTagsInput = document.getElementById('note-tags');
+    const noteContentInput = document.getElementById('note-content');
+    const contentLabel = document.getElementById('content-label');
+    const loginFields = document.getElementById('login-fields');
+    const noteWebsiteInput = document.getElementById('note-website');
+    const noteUsernameInput = document.getElementById('note-username');
+    const filterContainer = document.getElementById('filter-container');
 
-    const STORAGE_KEY = 'cakra-notes-v1';
+    // --- STATE MANAGEMENT ---
+    const STORAGE_KEY = 'cakra-v1-entries';
     let state = {
-        notes: [],
-        editingNoteId: null,
-        activeTOTPTimers: {}
+        entries: [],
+        editingEntryId: null,
+        activeTOTPTimers: {},
+        activeFilter: null
     };
 
     // --- SVG ICONS ---
@@ -28,51 +35,82 @@ document.addEventListener('DOMContentLoaded', () => {
     };
 
     // --- DATABASE FUNCTIONS ---
-    function getNotes() { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
-    function saveNotes() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.notes)); }
+    function getEntries() { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    function saveEntries() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.entries)); }
 
     // --- UI/DOM FUNCTIONS ---
-    function renderNotes() {
-        // Clear all active timers before re-rendering
+    function renderApp() {
         Object.values(state.activeTOTPTimers).forEach(clearInterval);
         state.activeTOTPTimers = {};
         
         notesContainer.innerHTML = '';
-        const notes = state.notes.sort((a, b) => b.isPinned - a.isPinned || b.updatedAt - a.updatedAt);
+        let entriesToRender = state.activeFilter ? state.entries.filter(e => e.tags && e.tags.includes(state.activeFilter)) : state.entries;
+        
+        const sortedEntries = entriesToRender.sort((a, b) => b.isPinned - a.isPinned || b.updatedAt - a.updatedAt);
 
-        if (notes.length === 0) {
-            notesContainer.innerHTML = '<p class="placeholder-text">Belum ada catatan. Tekan tombol + untuk memulai.</p>';
+        if (sortedEntries.length === 0) {
+            notesContainer.innerHTML = state.activeFilter 
+                ? `<p class="placeholder-text">Tidak ada entri dengan label "${state.activeFilter}".</p>`
+                : '<p class="placeholder-text">Belum ada entri. Tekan tombol + untuk memulai.</p>';
         } else {
-            notes.forEach(note => notesContainer.appendChild(createNoteCard(note)));
+            sortedEntries.forEach(entry => notesContainer.appendChild(createEntryCard(entry)));
         }
-        // Apply syntax highlighting after rendering
         hljs.highlightAll();
+        renderFilterButtons();
     }
 
-    function createNoteCard(note) {
+    function createEntryCard(entry) {
         const noteCard = document.createElement('div');
         noteCard.className = 'note-card';
-        if(note.isPinned) noteCard.classList.add('pinned');
-        noteCard.dataset.id = note.id;
+        if(entry.isPinned) noteCard.classList.add('pinned');
+        noteCard.dataset.id = entry.id;
 
         const mainContent = document.createElement('div');
         mainContent.className = 'note-main';
 
+        const noteTitle = document.createElement('h3');
+        noteTitle.className = 'note-title';
+        noteTitle.textContent = entry.title;
+        mainContent.appendChild(noteTitle);
+
+        const noteSubtitle = document.createElement('p');
+        noteSubtitle.className = 'note-subtitle';
+        mainContent.appendChild(noteSubtitle);
+
+        if (entry.tags && entry.tags.length > 0) {
+            const tagsList = document.createElement('div');
+            tagsList.className = 'tags-list';
+            entry.tags.forEach(tagText => {
+                const tagItem = document.createElement('span');
+                tagItem.className = 'tag-item';
+                tagItem.textContent = tagText;
+                tagsList.appendChild(tagItem);
+            });
+            mainContent.appendChild(tagsList);
+        }
+
         const noteContent = document.createElement('div');
         noteContent.className = 'note-content';
-
-        switch (note.type) {
-            case 'PASSWORD':
+        
+        switch (entry.type) {
+            case 'LOGIN':
+                noteSubtitle.textContent = entry.content.username || 'Tidak ada username';
                 noteContent.textContent = '••••••••••';
                 break;
+            case 'TEXT':
+                noteSubtitle.textContent = 'Catatan Teks';
+                noteContent.textContent = entry.content.text;
+                break;
             case 'CODE':
+                noteSubtitle.textContent = 'Potongan Kode';
                 const pre = document.createElement('pre');
                 const code = document.createElement('code');
-                code.textContent = note.text;
+                code.textContent = entry.content.text;
                 pre.appendChild(code);
                 noteContent.appendChild(pre);
                 break;
             case 'TOTP':
+                noteSubtitle.textContent = 'Kode Autentikasi';
                 const totpDisplay = document.createElement('div');
                 totpDisplay.className = 'totp-display';
                 const totpCode = document.createElement('div');
@@ -88,33 +126,28 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 const updateTOTP = () => {
                     try {
-                        let totp = new otpauth.TOTP({
-                            secret: otpauth.Secret.fromBase32(note.text.toUpperCase().replace(/\s/g, ''))
-                        });
+                        let totp = new otpauth.TOTP({ secret: otpauth.Secret.fromBase32(entry.content.secret.toUpperCase().replace(/\s/g, '')) });
                         totpCode.textContent = totp.generate();
                         const remaining = (totp.period - (Math.floor(Date.now() / 1000) % totp.period));
                         totpTimerBar.style.width = `${(remaining / totp.period) * 100}%`;
                     } catch (e) {
-                        totpCode.textContent = 'SECRET-KEY-INVALID';
-                        clearInterval(state.activeTOTPTimers[note.id]);
+                        totpCode.textContent = 'INVALID';
+                        clearInterval(state.activeTOTPTimers[entry.id]);
                     }
                 };
                 updateTOTP();
-                state.activeTOTPTimers[note.id] = setInterval(updateTOTP, 1000);
-                break;
-            default: // TEXT
-                noteContent.textContent = note.text;
+                state.activeTOTPTimers[entry.id] = setInterval(updateTOTP, 1000);
                 break;
         }
         mainContent.appendChild(noteContent);
         
-        const noteActions = createActionButtons(note, noteContent);
+        const noteActions = createActionButtons(entry, noteContent);
         noteCard.appendChild(mainContent);
         noteCard.appendChild(noteActions);
         return noteCard;
     }
-
-    function createActionButtons(note, noteContentElement) {
+    
+    function createActionButtons(entry, noteContentElement) {
         const actions = document.createElement('div');
         actions.className = 'note-actions';
         
@@ -123,117 +156,148 @@ document.addEventListener('DOMContentLoaded', () => {
             btn.className = 'action-btn';
             if(danger) btn.classList.add('danger');
             btn.innerHTML = icon;
-            btn.addEventListener('click', handler);
+            btn.addEventListener('click', (e) => { e.stopPropagation(); handler(); });
             return btn;
         };
 
-        // Pin Button
-        actions.appendChild(createBtn(ICONS.pin, () => togglePin(note.id)));
+        actions.appendChild(createBtn(ICONS.pin, () => togglePin(entry.id)));
         
-        // Peek Button (for Passwords)
-        if(note.type === 'PASSWORD') {
+        if(entry.type === 'LOGIN') {
             actions.appendChild(createBtn(ICONS.peek, () => {
-                noteContentElement.textContent = noteContentElement.textContent === '••••••••••' ? note.text : '••••••••••';
+                noteContentElement.textContent = noteContentElement.textContent === '••••••••••' ? entry.content.password : '••••••••••';
             }));
         }
 
-        // Copy Button
-        actions.appendChild(createBtn(ICONS.copy, () => {
-             navigator.clipboard.writeText(note.text).then(() => alert('Teks berhasil disalin!'));
-        }));
+        const copyText = entry.type === 'LOGIN' ? entry.content.password : (entry.type === 'TOTP' ? '' : entry.content.text);
+        if (copyText) {
+            actions.appendChild(createBtn(ICONS.copy, () => navigator.clipboard.writeText(copyText).then(() => alert('Konten disalin!'))));
+        }
         
-        // Edit Button
-        actions.appendChild(createBtn(ICONS.edit, () => openModal(note.id)));
-        
-        // Delete Button
-        actions.appendChild(createBtn(ICONS.delete, () => deleteNote(note.id), true));
+        actions.appendChild(createBtn(ICONS.edit, () => openModal(entry.id)));
+        actions.appendChild(createBtn(ICONS.delete, () => deleteEntry(entry.id), true));
 
         return actions;
     }
+    
+    function renderFilterButtons() {
+        filterContainer.innerHTML = '';
+        const allTags = new Set(state.entries.flatMap(e => e.tags || []));
 
-    // --- MODAL FUNCTIONS ---
-    function openModal(noteId = null) {
+        const createFilterBtn = (tag, isActive) => {
+            const btn = document.createElement('button');
+            btn.className = 'filter-btn';
+            if (isActive) btn.classList.add('active');
+            btn.textContent = tag || 'Semua';
+            btn.addEventListener('click', () => {
+                state.activeFilter = tag;
+                renderApp();
+            });
+            return btn;
+        };
+
+        filterContainer.appendChild(createFilterBtn(null, !state.activeFilter));
+        allTags.forEach(tag => filterContainer.appendChild(createFilterBtn(tag, tag === state.activeFilter)));
+    }
+
+    // --- MODAL & FORM FUNCTIONS ---
+    function openModal(entryId = null) {
         noteForm.reset();
-        state.editingNoteId = noteId;
-        if (noteId) {
-            modalTitle.textContent = 'Edit Catatan';
-            const note = state.notes.find(n => n.id === noteId);
-            noteTypeSelect.value = note.type;
-            noteTextInput.value = note.text;
+        state.editingEntryId = entryId;
+        if (entryId) {
+            modalTitle.textContent = 'Edit Entri';
+            const entry = state.entries.find(e => e.id === entryId);
+            noteTypeSelect.value = entry.type;
+            noteTitleInput.value = entry.title;
+            noteTagsInput.value = entry.tags ? entry.tags.join(', ') : '';
+            
+            if (entry.type === 'LOGIN') {
+                noteWebsiteInput.value = entry.content.website || '';
+                noteUsernameInput.value = entry.content.username || '';
+                noteContentInput.value = entry.content.password || '';
+            } else {
+                noteContentInput.value = entry.content.text || entry.content.secret || '';
+            }
         } else {
-            modalTitle.textContent = 'Tambah Catatan Baru';
+            modalTitle.textContent = 'Tambah Entri Baru';
         }
-        updateFormForType();
+        updateFormDisplay();
         modalOverlay.classList.remove('hidden');
     }
 
-    function closeModal() {
-        modalOverlay.classList.add('hidden');
+    function closeModal() { modalOverlay.classList.add('hidden'); }
+
+    function updateFormDisplay() {
+        const type = noteTypeSelect.value;
+        loginFields.classList.add('hidden');
+
+        switch (type) {
+            case 'LOGIN':
+                loginFields.classList.remove('hidden');
+                contentLabel.textContent = 'Sandi';
+                break;
+            case 'TEXT': contentLabel.textContent = 'Isi Catatan'; break;
+            case 'CODE': contentLabel.textContent = 'Potongan Kode'; break;
+            case 'TOTP': contentLabel.textContent = 'Kunci Rahasia (Secret Key)'; break;
+        }
     }
     
-    function updateFormForType() {
-        const type = noteTypeSelect.value;
-        if(type === 'TOTP') {
-            noteTextLabel.textContent = 'Kunci Rahasia (Secret Key)';
-            noteTextInput.placeholder = 'Contoh: JBSWY3DPEHPK3PXP';
-        } else {
-            noteTextLabel.textContent = 'Isi Catatan';
-            noteTextInput.placeholder = '';
-        }
-    }
-
-    // --- CORE LOGIC FUNCTIONS ---
     function handleFormSubmit(e) {
         e.preventDefault();
-        const text = noteTextInput.value;
         const type = noteTypeSelect.value;
+        const title = noteTitleInput.value;
+        const tags = noteTagsInput.value.split(',').map(t => t.trim()).filter(Boolean);
+        let content;
 
-        if (state.editingNoteId) { // Editing
-            const note = state.notes.find(n => n.id === state.editingNoteId);
-            note.text = text;
-            note.type = type;
-            note.updatedAt = Date.now();
-        } else { // Adding new
-            const newNote = {
-                id: Date.now().toString(),
-                text: text,
-                type: type,
-                createdAt: Date.now(),
-                updatedAt: Date.now(),
-                isPinned: false
-            };
-            state.notes.push(newNote);
+        switch (type) {
+            case 'LOGIN':
+                content = { website: noteWebsiteInput.value, username: noteUsernameInput.value, password: noteContentInput.value };
+                break;
+            case 'TOTP':
+                content = { secret: noteContentInput.value };
+                break;
+            default:
+                content = { text: noteContentInput.value };
+                break;
         }
-        saveNotes();
-        renderNotes();
+
+        if (state.editingEntryId) {
+            const entry = state.entries.find(e => e.id === state.editingEntryId);
+            Object.assign(entry, { title, type, tags, content, updatedAt: Date.now() });
+        } else {
+            state.entries.push({
+                id: Date.now().toString(), title, type, tags, content,
+                createdAt: Date.now(), updatedAt: Date.now(), isPinned: false
+            });
+        }
+        saveEntries();
+        renderApp();
         closeModal();
     }
 
-    function deleteNote(id) {
-        if (confirm('Anda yakin ingin menghapus catatan ini?')) {
-            state.notes = state.notes.filter(note => note.id !== id);
-            saveNotes();
-            renderNotes();
+    // --- CORE LOGIC FUNCTIONS ---
+    function deleteEntry(id) {
+        if (confirm('Anda yakin ingin menghapus entri ini?')) {
+            state.entries = state.entries.filter(entry => entry.id !== id);
+            saveEntries();
+            renderApp();
         }
     }
 
     function togglePin(id) {
-        const note = state.notes.find(n => n.id === id);
-        note.isPinned = !note.isPinned;
-        note.updatedAt = Date.now();
-        saveNotes();
-        renderNotes();
+        const entry = state.entries.find(e => e.id === id);
+        entry.isPinned = !entry.isPinned;
+        entry.updatedAt = Date.now();
+        saveEntries();
+        renderApp();
     }
 
     // --- INITIALIZATION & EVENT LISTENERS ---
-    state.notes = getNotes();
-    renderNotes();
-
     addNoteButton.addEventListener('click', () => openModal());
     cancelBtn.addEventListener('click', closeModal);
     noteForm.addEventListener('submit', handleFormSubmit);
-    noteTypeSelect.addEventListener('change', updateFormForType);
-    modalOverlay.addEventListener('click', (e) => {
-        if (e.target === modalOverlay) closeModal();
-    });
+    noteTypeSelect.addEventListener('change', updateFormDisplay);
+    modalOverlay.addEventListener('click', (e) => { if (e.target === modalOverlay) closeModal(); });
+    
+    state.entries = getEntries();
+    renderApp();
 });
