@@ -1,103 +1,105 @@
-/* Reset default browser styles */
-body, h1, p {
-    margin: 0;
-    padding: 0;
-    font: inherit;
+:root {
+    --primary-color: #4A90E2;
+    --primary-dark: #357ae8;
+    --background-color: #f8f9fa;
+    --surface-color: #ffffff;
+    --text-primary: #212529;
+    --text-secondary: #6c757d;
+    --danger-color: #dc3545;
+    --code-bg: #282c34;
 }
 
 body {
     font-family: 'Roboto', sans-serif;
     line-height: 1.6;
-    background-color: #f8f9fa;
-    color: #343a40;
+    background-color: var(--background-color);
+    color: var(--text-primary);
+    margin: 0;
 }
 
 header {
-    background-color: #ffffff;
+    background-color: var(--surface-color);
     padding: 1rem 1.5rem;
     box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-    position: sticky;
-    top: 0;
-    z-index: 100;
+    position: sticky; top: 0; z-index: 100;
 }
+header h1 { font-size: 1.5rem; font-weight: 500; }
 
-header h1 {
-    font-size: 1.5rem;
-    font-weight: 500;
-}
-
-main {
-    padding: 1rem;
-}
-
-.placeholder-text {
-    text-align: center;
-    color: #888;
-    padding: 3rem 1rem;
-}
+main { padding: 1rem; }
 
 .note-card {
-    background-color: #ffffff;
-    border-radius: 8px;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    background-color: var(--surface-color);
+    border-radius: 12px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.08);
     margin-bottom: 1rem;
-    padding: 1rem;
-    word-break: break-word;
+    display: flex;
+    flex-direction: column;
+    transition: box-shadow 0.2s ease;
+}
+.note-card.pinned {
+    box-shadow: 0 0 0 2px var(--primary-color), 0 4px 8px rgba(74, 144, 226, 0.2);
 }
 
-.note-content {
-    color: #343a40;
-    padding: 0;
-    margin-bottom: 1rem;
-    text-align: left;
-    white-space: pre-wrap; /* To respect line breaks */
+.note-main { padding: 1rem; flex-grow: 1; }
+.note-content { margin-bottom: 1rem; white-space: pre-wrap; word-break: break-all; }
+.note-content pre code {
+    background-color: var(--code-bg);
+    color: #abb2bf;
+    padding: 1rem;
+    border-radius: 8px;
+    display: block;
+    font-family: 'Source Code Pro', monospace;
 }
+.totp-display { text-align: center; }
+.totp-code { font-size: 2.5rem; font-weight: 500; letter-spacing: 5px; font-family: 'Source Code Pro', monospace; color: var(--primary-color); }
+.totp-timer { width: 100%; height: 4px; background-color: #e9ecef; border-radius: 2px; overflow: hidden; margin-top: 0.5rem; }
+.totp-timer-bar { height: 100%; background-color: var(--primary-color); width: 100%; transition: width 1s linear; }
 
 .note-actions {
-    display: flex;
-    justify-content: flex-end;
-    gap: 0.5rem;
-    border-top: 1px solid #e9ecef;
-    padding-top: 0.75rem;
+    display: flex; justify-content: flex-end; gap: 0.5rem;
+    border-top: 1px solid #e9ecef; padding: 0.75rem 1rem;
 }
-
 .action-btn {
-    background-color: transparent;
-    border: none;
-    color: #4A90E2;
-    cursor: pointer;
-    padding: 0.5rem;
-    border-radius: 4px;
-    font-weight: 500;
+    background: none; border: none; cursor: pointer; padding: 0.5rem;
+    border-radius: 50%; width: 36px; height: 36px;
+    display: flex; align-items: center; justify-content: center;
     transition: background-color 0.2s ease;
 }
+.action-btn:hover { background-color: rgba(0,0,0,0.05); }
+.action-btn svg { width: 20px; height: 20px; fill: var(--text-secondary); }
+.action-btn.danger svg { fill: var(--danger-color); }
 
-.action-btn:hover {
-    background-color: rgba(74, 144, 226, 0.1);
-}
-
-.fab-container {
-    position: fixed;
-    bottom: 2rem;
-    right: 2rem;
-}
-
+.fab-container { position: fixed; bottom: 2rem; right: 2rem; z-index: 101; }
 #add-note-btn {
-    background-color: #4A90E2;
-    color: white;
-    border: none;
-    border-radius: 50%;
-    width: 56px;
-    height: 56px;
-    font-size: 24px;
-    line-height: 56px;
-    text-align: center;
-    box-shadow: 0 4px 8px rgba(0,0,0,0.2);
-    cursor: pointer;
-    transition: all 0.2s ease;
+    background-color: var(--primary-color); color: white; border: none;
+    border-radius: 16px; width: 56px; height: 56px; font-size: 28px;
+    box-shadow: 0 4px 8px rgba(0,0,0,0.2); cursor: pointer; transition: all 0.2s ease;
 }
+#add-note-btn:hover { transform: translateY(-2px); background-color: var(--primary-dark); }
 
-#add-note-btn:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+/* Modal Styles */
+.hidden { display: none !important; }
+#modal-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background-color: rgba(0,0,0,0.5); z-index: 1000;
+    display: flex; align-items: center; justify-content: center;
 }
+#modal-content {
+    background-color: var(--surface-color); border-radius: 12px;
+    width: 90%; max-width: 500px; box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+    padding: 1.5rem;
+}
+#modal-title { font-size: 1.25rem; font-weight: 500; margin-bottom: 1.5rem; }
+.form-group { margin-bottom: 1rem; }
+.form-group label { display: block; margin-bottom: 0.5rem; font-size: 0.9rem; color: var(--text-secondary); }
+.form-group select, .form-group textarea {
+    width: 100%; padding: 0.75rem; border-radius: 8px;
+    border: 1px solid #ced4da; font-size: 1rem; font-family: 'Roboto', sans-serif;
+}
+.form-actions { display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1.5rem; }
+#note-form button {
+    padding: 0.75rem 1.5rem; border-radius: 8px; border: none;
+    font-size: 1rem; font-weight: 500; cursor: pointer;
+}
+#cancel-btn { background-color: #e9ecef; }
+#save-btn { background-color: var(--primary-color); color: white; }

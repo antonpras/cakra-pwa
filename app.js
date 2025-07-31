@@ -1,153 +1,239 @@
-// Wait until the document is fully loaded
 document.addEventListener('DOMContentLoaded', () => {
+    // --- GLOBAL VARIABLES & CONSTANTS ---
     const notesContainer = document.getElementById('notes-container');
     const addNoteButton = document.getElementById('add-note-btn');
-    const STORAGE_KEY = 'cakra-notes';
+    const modalOverlay = document.getElementById('modal-overlay');
+    const modalContent = document.getElementById('modal-content');
+    const noteForm = document.getElementById('note-form');
+    const modalTitle = document.getElementById('modal-title');
+    const cancelBtn = document.getElementById('cancel-btn');
+    const noteTypeSelect = document.getElementById('note-type');
+    const noteTextInput = document.getElementById('note-text');
+    const noteTextLabel = document.getElementById('note-text-label');
 
-    // --- FUNGSI DATABASE LOKAL ---
-    function getNotes() {
-        return JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
-    }
+    const STORAGE_KEY = 'cakra-notes-v1';
+    let state = {
+        notes: [],
+        editingNoteId: null,
+        activeTOTPTimers: {}
+    };
 
-    function saveNotes(notes) {
-        localStorage.setItem(STORAGE_KEY, JSON.stringify(notes));
-    }
+    // --- SVG ICONS ---
+    const ICONS = {
+        copy: `<svg viewBox="0 0 24 24"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>`,
+        edit: `<svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>`,
+        delete: `<svg viewBox="0 0 24 24"><path d="M6 19c0 1.1.9 2 2 2h8c1.1 0 2-.9 2-2V7H6v12zM19 4h-3.5l-1-1h-5l-1 1H5v2h14V4z"/></svg>`,
+        pin: `<svg viewBox="0 0 24 24"><path d="M16 9V4h-2v5l-2 2v2h6v-2l-2-2zM12 2C8.69 2 6 4.69 6 8c0 1.66.79 3.16 2.08 4.08L6 14v2h12v-2l-2.08-1.92C17.21 11.16 18 9.66 18 8c0-3.31-2.69-6-6-6z"/></svg>`,
+        peek: `<svg viewBox="0 0 24 24"><path d="M12 4.5C7 4.5 2.73 7.61 1 12c1.73 4.39 6 7.5 11 7.5s9.27-3.11 11-7.5C21.27 7.61 17 4.5 12 4.5zm0 12c-2.48 0-4.5-2.02-4.5-4.5S9.52 7.5 12 7.5s4.5 2.02 4.5 4.5-2.02 4.5-4.5 4.5zm0-7c-1.38 0-2.5 1.12-2.5 2.5s1.12 2.5 2.5 2.5 2.5-1.12 2.5-2.5-1.12-2.5-2.5-2.5z"/></svg>`
+    };
 
-    // --- FUNGSI TAMPILAN (UI) ---
+    // --- DATABASE FUNCTIONS ---
+    function getNotes() { return JSON.parse(localStorage.getItem(STORAGE_KEY)) || []; }
+    function saveNotes() { localStorage.setItem(STORAGE_KEY, JSON.stringify(state.notes)); }
+
+    // --- UI/DOM FUNCTIONS ---
     function renderNotes() {
-        const notes = getNotes();
-        notesContainer.innerHTML = ''; 
+        // Clear all active timers before re-rendering
+        Object.values(state.activeTOTPTimers).forEach(clearInterval);
+        state.activeTOTPTimers = {};
+        
+        notesContainer.innerHTML = '';
+        const notes = state.notes.sort((a, b) => b.isPinned - a.isPinned || b.updatedAt - a.updatedAt);
 
         if (notes.length === 0) {
             notesContainer.innerHTML = '<p class="placeholder-text">Belum ada catatan. Tekan tombol + untuk memulai.</p>';
         } else {
-            notes.forEach(note => {
-                const noteCard = createNoteCard(note);
-                notesContainer.appendChild(noteCard);
-            });
+            notes.forEach(note => notesContainer.appendChild(createNoteCard(note)));
         }
+        // Apply syntax highlighting after rendering
+        hljs.highlightAll();
     }
 
     function createNoteCard(note) {
         const noteCard = document.createElement('div');
         noteCard.className = 'note-card';
+        if(note.isPinned) noteCard.classList.add('pinned');
         noteCard.dataset.id = note.id;
 
-        const noteContent = document.createElement('p');
+        const mainContent = document.createElement('div');
+        mainContent.className = 'note-main';
+
+        const noteContent = document.createElement('div');
         noteContent.className = 'note-content';
-        
-        // --- LOGIKA BARU: TAMPILAN BERDASARKAN JENIS CATATAN ---
+
         switch (note.type) {
             case 'PASSWORD':
                 noteContent.textContent = '••••••••••';
-                noteContent.style.fontFamily = 'monospace';
                 break;
             case 'CODE':
-                noteContent.textContent = note.text;
-                noteContent.style.fontFamily = 'monospace';
-                noteContent.style.whiteSpace = 'pre'; // Preserve formatting
-                noteContent.style.backgroundColor = '#e9ecef';
-                noteContent.style.padding = '0.5rem';
-                noteContent.style.borderRadius = '4px';
+                const pre = document.createElement('pre');
+                const code = document.createElement('code');
+                code.textContent = note.text;
+                pre.appendChild(code);
+                noteContent.appendChild(pre);
+                break;
+            case 'TOTP':
+                const totpDisplay = document.createElement('div');
+                totpDisplay.className = 'totp-display';
+                const totpCode = document.createElement('div');
+                totpCode.className = 'totp-code';
+                const totpTimer = document.createElement('div');
+                totpTimer.className = 'totp-timer';
+                const totpTimerBar = document.createElement('div');
+                totpTimerBar.className = 'totp-timer-bar';
+                totpTimer.appendChild(totpTimerBar);
+                totpDisplay.appendChild(totpCode);
+                totpDisplay.appendChild(totpTimer);
+                noteContent.appendChild(totpDisplay);
+                
+                const updateTOTP = () => {
+                    try {
+                        let totp = new otpauth.TOTP({
+                            secret: otpauth.Secret.fromBase32(note.text.toUpperCase().replace(/\s/g, ''))
+                        });
+                        totpCode.textContent = totp.generate();
+                        const remaining = (totp.period - (Math.floor(Date.now() / 1000) % totp.period));
+                        totpTimerBar.style.width = `${(remaining / totp.period) * 100}%`;
+                    } catch (e) {
+                        totpCode.textContent = 'SECRET-KEY-INVALID';
+                        clearInterval(state.activeTOTPTimers[note.id]);
+                    }
+                };
+                updateTOTP();
+                state.activeTOTPTimers[note.id] = setInterval(updateTOTP, 1000);
                 break;
             default: // TEXT
                 noteContent.textContent = note.text;
                 break;
         }
-
-        const noteActions = document.createElement('div');
-        noteActions.className = 'note-actions';
+        mainContent.appendChild(noteContent);
         
-        const copyButton = document.createElement('button');
-        copyButton.className = 'action-btn';
-        copyButton.textContent = 'Salin';
-        copyButton.addEventListener('click', () => {
-            navigator.clipboard.writeText(note.text).then(() => {
-                alert('Teks berhasil disalin!');
-            }).catch(err => console.error('Gagal menyalin teks: ', err));
-        });
-
-        const deleteButton = document.createElement('button');
-        deleteButton.className = 'action-btn';
-        deleteButton.textContent = 'Hapus';
-        deleteButton.style.color = '#dc3545';
-        deleteButton.addEventListener('click', () => {
-            if (confirm('Anda yakin ingin menghapus catatan ini?')) {
-                deleteNote(note.id);
-            }
-        });
-
-        noteActions.appendChild(copyButton);
-        noteActions.appendChild(deleteButton);
-        
-        // --- Tombol "Lihat" khusus untuk Sandi ---
-        if (note.type === 'PASSWORD') {
-            const peekButton = document.createElement('button');
-            peekButton.className = 'action-btn';
-            peekButton.textContent = 'Lihat';
-            peekButton.addEventListener('click', function() {
-                // Temporarily show the password
-                const originalText = this.textContent;
-                noteContent.textContent = note.text;
-                this.textContent = 'Sembunyikan';
-                
-                setTimeout(() => {
-                    noteContent.textContent = '••••••••••';
-                    this.textContent = originalText;
-                }, 3000); // Hide again after 3 seconds
-            });
-            noteActions.prepend(peekButton); // Add "Lihat" button before others
-        }
-        
-        noteCard.appendChild(noteContent);
+        const noteActions = createActionButtons(note, noteContent);
+        noteCard.appendChild(mainContent);
         noteCard.appendChild(noteActions);
-        
         return noteCard;
     }
-    
-    // --- FUNGSI LOGIKA APLIKASI ---
-    function addNote() {
-        const noteTypeText = prompt("Pilih jenis catatan:\n1. Teks Biasa\n2. Sandi\n3. Kode");
-        if (!noteTypeText) return; // User cancelled
 
-        let noteType = 'TEXT';
-        switch(noteTypeText.trim()) {
-            case '1':
-                noteType = 'TEXT';
-                break;
-            case '2':
-                noteType = 'PASSWORD';
-                break;
-            case '3':
-                noteType = 'CODE';
-                break;
-            default:
-                alert('Pilihan tidak valid.');
-                return;
+    function createActionButtons(note, noteContentElement) {
+        const actions = document.createElement('div');
+        actions.className = 'note-actions';
+        
+        const createBtn = (icon, handler, danger = false) => {
+            const btn = document.createElement('button');
+            btn.className = 'action-btn';
+            if(danger) btn.classList.add('danger');
+            btn.innerHTML = icon;
+            btn.addEventListener('click', handler);
+            return btn;
+        };
+
+        // Pin Button
+        actions.appendChild(createBtn(ICONS.pin, () => togglePin(note.id)));
+        
+        // Peek Button (for Passwords)
+        if(note.type === 'PASSWORD') {
+            actions.appendChild(createBtn(ICONS.peek, () => {
+                noteContentElement.textContent = noteContentElement.textContent === '••••••••••' ? note.text : '••••••••••';
+            }));
         }
 
-        const noteText = prompt(`Masukkan ${noteType.toLowerCase()} baru:`);
-        if (noteText && noteText.trim() !== '') {
-            const notes = getNotes();
+        // Copy Button
+        actions.appendChild(createBtn(ICONS.copy, () => {
+             navigator.clipboard.writeText(note.text).then(() => alert('Teks berhasil disalin!'));
+        }));
+        
+        // Edit Button
+        actions.appendChild(createBtn(ICONS.edit, () => openModal(note.id)));
+        
+        // Delete Button
+        actions.appendChild(createBtn(ICONS.delete, () => deleteNote(note.id), true));
+
+        return actions;
+    }
+
+    // --- MODAL FUNCTIONS ---
+    function openModal(noteId = null) {
+        noteForm.reset();
+        state.editingNoteId = noteId;
+        if (noteId) {
+            modalTitle.textContent = 'Edit Catatan';
+            const note = state.notes.find(n => n.id === noteId);
+            noteTypeSelect.value = note.type;
+            noteTextInput.value = note.text;
+        } else {
+            modalTitle.textContent = 'Tambah Catatan Baru';
+        }
+        updateFormForType();
+        modalOverlay.classList.remove('hidden');
+    }
+
+    function closeModal() {
+        modalOverlay.classList.add('hidden');
+    }
+    
+    function updateFormForType() {
+        const type = noteTypeSelect.value;
+        if(type === 'TOTP') {
+            noteTextLabel.textContent = 'Kunci Rahasia (Secret Key)';
+            noteTextInput.placeholder = 'Contoh: JBSWY3DPEHPK3PXP';
+        } else {
+            noteTextLabel.textContent = 'Isi Catatan';
+            noteTextInput.placeholder = '';
+        }
+    }
+
+    // --- CORE LOGIC FUNCTIONS ---
+    function handleFormSubmit(e) {
+        e.preventDefault();
+        const text = noteTextInput.value;
+        const type = noteTypeSelect.value;
+
+        if (state.editingNoteId) { // Editing
+            const note = state.notes.find(n => n.id === state.editingNoteId);
+            note.text = text;
+            note.type = type;
+            note.updatedAt = Date.now();
+        } else { // Adding new
             const newNote = {
                 id: Date.now().toString(),
-                text: noteText,
-                type: noteType // Menyimpan jenis catatan
+                text: text,
+                type: type,
+                createdAt: Date.now(),
+                updatedAt: Date.now(),
+                isPinned: false
             };
-            notes.unshift(newNote); 
-            saveNotes(notes);
+            state.notes.push(newNote);
+        }
+        saveNotes();
+        renderNotes();
+        closeModal();
+    }
+
+    function deleteNote(id) {
+        if (confirm('Anda yakin ingin menghapus catatan ini?')) {
+            state.notes = state.notes.filter(note => note.id !== id);
+            saveNotes();
             renderNotes();
         }
     }
-    
-    function deleteNote(id) {
-        let notes = getNotes();
-        notes = notes.filter(note => note.id !== id);
-        saveNotes(notes);
+
+    function togglePin(id) {
+        const note = state.notes.find(n => n.id === id);
+        note.isPinned = !note.isPinned;
+        note.updatedAt = Date.now();
+        saveNotes();
         renderNotes();
     }
 
-    // Initial setup
-    addNoteButton.addEventListener('click', addNote);
+    // --- INITIALIZATION & EVENT LISTENERS ---
+    state.notes = getNotes();
     renderNotes();
+
+    addNoteButton.addEventListener('click', () => openModal());
+    cancelBtn.addEventListener('click', closeModal);
+    noteForm.addEventListener('submit', handleFormSubmit);
+    noteTypeSelect.addEventListener('change', updateFormForType);
+    modalOverlay.addEventListener('click', (e) => {
+        if (e.target === modalOverlay) closeModal();
+    });
 });

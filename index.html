@@ -6,7 +6,10 @@
     <title>Cakra</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&family=Source+Code+Pro&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+
     <link rel="stylesheet" href="style.css">
     <link rel="manifest" href="manifest.json">
 </head>
@@ -16,14 +19,40 @@
     </header>
 
     <main id="notes-container">
-        <p class="placeholder-text">Belum ada catatan. Tekan tombol + untuk memulai.</p>
-        
         </main>
 
     <div class="fab-container">
         <button id="add-note-btn" title="Tambah Catatan Baru">+</button>
     </div>
 
+    <div id="modal-overlay" class="hidden">
+        <div id="modal-content">
+            <h2 id="modal-title">Tambah Catatan Baru</h2>
+            <form id="note-form">
+                <div class="form-group">
+                    <label for="note-type">Jenis Catatan</label>
+                    <select id="note-type" required>
+                        <option value="TEXT">Teks Biasa</option>
+                        <option value="PASSWORD">Sandi</option>
+                        <option value="CODE">Kode</option>
+                        <option value="TOTP">Kode Autentikator (TOTP)</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="note-text" id="note-text-label">Isi Catatan</label>
+                    <textarea id="note-text" rows="4" required></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" id="cancel-btn">Batal</button>
+                    <button type="submit" id="save-btn">Simpan</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/otpauth@9.2.2/dist/otpauth.umd.min.js"></script>
+    
     <script src="app.js"></script>
 </body>
 </html>
