@@ -1,0 +1,21 @@
+{
+  "name": "Cakra",
+  "short_name": "Cakra",
+  "start_url": ".",
+  "display": "standalone",
+  "background_color": "#f8f9fa",
+  "theme_color": "#4A90E2",
+  "description": "Brankas Klip Cerdas untuk catatan Anda.",
+  "icons": [
+    {
+      "src": "/icon-192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "/icon-512.png",
+      "type": "image/png",
+      "sizes": "512x512"
+    }
+  ]
+}
