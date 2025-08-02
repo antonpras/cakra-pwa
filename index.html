@@ -3,24 +3,114 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Tes Login Cakra</title>
-    <style>
-        body { font-family: sans-serif; display: flex; align-items: center; justify-content: center; height: 100vh; text-align: center; }
-        #status { margin-bottom: 20px; font-weight: bold; }
-        button { font-size: 1.2rem; padding: 10px 20px; }
-    </style>
+    <title>Cakra</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500&family=Source+Code+Pro&display=swap" rel="stylesheet">
+    <!-- Highlight.js for Code Snippets -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/atom-one-dark.min.css">
+    <!-- Our Files -->
+    <link rel="stylesheet" href="style.css">
+    <link rel="manifest" href="manifest.json">
 </head>
 <body>
-    <div>
-        <h1>Tes Login Firebase</h1>
-        <p id="status">Silakan tekan tombol untuk login.</p>
-        <button id="login-btn-test">Login dengan Google</button>
-        <p id="user-info"></p>
+
+    <!-- Login Screen (Google Sign-in) -->
+    <div id="login-screen">
+        <div class="lock-content">
+            <h2>Selamat Datang di Cakra</h2>
+            <p>Brankas aman untuk semua data penting Anda.</p>
+            <button id="login-btn">
+                <svg aria-hidden="true" height="20" viewBox="0 0 24 24" width="20"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"></path><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"></path><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"></path><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"></path><path d="M1 1h22v22H1z" fill="none"></path></svg>
+                <span>Login dengan Google</span>
+            </button>
+        </div>
+    </div>
+
+    <!-- Encryption Key Screen -->
+    <div id="key-screen" class="hidden">
+        <div class="lock-content">
+            <h2 id="key-title">Buka Brankas</h2>
+            <p id="key-subtitle">Masukkan Kunci Enkripsi Anda.</p>
+            <form id="key-form">
+                <input type="password" id="key-input" placeholder="••••••••••" required>
+                <input type="password" id="key-confirm-input" class="hidden" placeholder="Konfirmasi Kunci" required>
+                <button type="submit" id="key-submit-btn">Buka</button>
+            </form>
+            <p id="key-error-message" class="hidden"></p>
+        </div>
+    </div>
+
+    <!-- Main App Content (Hidden by default) -->
+    <div id="app-container" class="hidden">
+        <header>
+            <div id="user-profile">
+                <img id="user-photo" src="https://placehold.co/40x40" alt="Foto Pengguna">
+                <span id="user-name"></span>
+            </div>
+            <button id="logout-btn" title="Keluar & Kunci">Keluar</button>
+        </header>
+        <div id="filter-container"></div>
+        <main id="notes-container"></main>
+        <div class="fab-container">
+            <button id="add-note-btn" title="Tambah Entri Baru">+</button>
+        </div>
+    </div>
+
+    <!-- Modal for Adding/Editing Notes -->
+    <div id="modal-overlay" class="hidden">
+        <div id="modal-content">
+            <h2 id="modal-title">Tambah Entri Baru</h2>
+            <form id="note-form">
+                <div class="form-group">
+                    <label for="note-type">Jenis Entri</label>
+                    <select id="note-type" required>
+                        <option value="LOGIN">Login / Sandi</option>
+                        <option value="TEXT">Catatan Teks</option>
+                        <option value="TOTP">Kode Autentikator</option>
+                        <option value="CODE">Potongan Kode</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="note-title">Judul (cth: Akun Google)</label>
+                    <input type="text" id="note-title" required autocomplete="off">
+                </div>
+                <div class="form-group">
+                    <label for="note-tags">Label (pisahkan dengan koma)</label>
+                    <input type="text" id="note-tags" placeholder="kerja, sosmed, penting">
+                </div>
+                <div id="login-fields" class="hidden">
+                    <div class="form-group">
+                        <label for="note-website">Website (Opsional)</label>
+                        <input type="url" id="note-website" placeholder="https://google.com">
+                    </div>
+                    <div class="form-group">
+                        <label for="note-username">Username / Email</label>
+                        <input type="text" id="note-username" autocomplete="off">
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label for="note-content" id="content-label">Konten</label>
+                    <textarea id="note-content" rows="4" required></textarea>
+                </div>
+                <div class="form-actions">
+                    <button type="button" id="cancel-btn">Batal</button>
+                    <button type="submit" id="save-btn">Simpan</button>
+                </div>
+            </form>
+        </div>
     </div>
 
     <!-- Firebase SDKs -->
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.15.0/firebase-firestore-compat.js"></script>
+
+    <!-- Other Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.2.0/crypto-js.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/otpauth@9.2.2/dist/otpauth.umd.min.js"></script>
     
     <!-- Our App Logic -->
     <script src="app.js"></script>
