@@ -2,32 +2,21 @@ document.addEventListener('DOMContentLoaded', () => {
     // Jaring pengaman untuk menangkap semua error saat inisialisasi
     try {
         // --- KONFIGURASI FIREBASE ANDA ---
-        // For Firebase JS SDK v7.20.0 and later, measurementId is optional
-const firebaseConfig = {
-  apiKey: "AIzaSyAfNMqqY1oYJK9uV63MRBRRBxCgzT3dI-g",
-  authDomain: "cakra-brankas-pribadi.firebaseapp.com",
-  projectId: "cakra-brankas-pribadi",
-  storageBucket: "cakra-brankas-pribadi.firebasestorage.app",
-  messagingSenderId: "973097679765",
-  appId: "1:973097679765:web:d242994d12560b4fdfd49c",
-  measurementId: "G-99RFT3FN8Q"
-};
+        const firebaseConfig = {
+            apiKey: "AIzaSyAFNMqqfIoYJk9uV63MRBRBxCgzT3DI-g",
+            authDomain: "cakra-brankas-pribadi.firebaseapp.com",
+            projectId: "cakra-brankas-pribadi",
+            storageBucket: "cakra-brankas-pribadi.appspot.com",
+            messagingSenderId: "973097679765",
+            appId: "1:973097679765:web:d242994d12560b4fdfd49c",
+            measurementId: "G-99MFT3FNBQ"
+        };
 
         // --- INITIALIZE FIREBASE ---
         firebase.initializeApp(firebaseConfig);
         const auth = firebase.auth();
         const db = firebase.firestore();
-        
-        // PERBAIKAN 1: Konfigurasi Auth Persistence
-        auth.setPersistence(firebase.auth.Auth.Persistence.LOCAL);
-        
-        // PERBAIKAN 2: Provider configuration yang lebih robust
         const googleProvider = new firebase.auth.GoogleAuthProvider();
-        googleProvider.setCustomParameters({
-            prompt: 'select_account'
-        });
-        googleProvider.addScope('email');
-        googleProvider.addScope('profile');
 
         // --- ELEMENT SELECTORS ---
         const loginScreen = document.getElementById('login-screen');
@@ -92,19 +81,6 @@ const firebaseConfig = {
                 return JSON.parse(decryptedString);
             } catch { return null; }
         }
-
-        // PERBAIKAN 3: Check redirect result on page load
-        auth.getRedirectResult().then((result) => {
-            if (result.credential) {
-                console.log('Login dari redirect berhasil:', result.user.displayName);
-            }
-        }).catch((error) => {
-            console.error('Redirect error:', error);
-            if (error.code === 'auth/unauthorized-domain') {
-                console.error('Domain tidak diotorisasi:', window.location.origin);
-                alert(`Domain tidak diotorisasi: ${window.location.origin}\nTambahkan domain ini ke Firebase Console.`);
-            }
-        });
 
         // --- AUTHENTICATION & KEY MANAGEMENT ---
         auth.onAuthStateChanged(user => {
@@ -183,108 +159,7 @@ const firebaseConfig = {
             keyErrorMessage.classList.remove('hidden');
         }
 
-        // PERBAIKAN 4: Deteksi browser dan device
-        function isMobileDevice() {
-            return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
-        }
-
-        function isInAppBrowser() {
-            const ua = navigator.userAgent;
-            return /FBAN|FBAV|Instagram|LinkedInApp|WhatsApp|Messenger/i.test(ua);
-        }
-
-        // PERBAIKAN 5: Improved Google Sign-in handler
-        function handleGoogleSignIn() {
-            // Prevent multiple clicks
-            if (loginBtn.disabled) return;
-            
-            loginBtn.disabled = true;
-            loginBtn.innerHTML = '<span>Memproses...</span>';
-            
-            console.log('Starting Google Sign-in...');
-            console.log('Domain:', window.location.origin);
-            console.log('Is mobile:', isMobileDevice());
-            console.log('Is in-app browser:', isInAppBrowser());
-
-            // Untuk mobile atau in-app browser, gunakan redirect
-            if (isMobileDevice() || isInAppBrowser()) {
-                console.log('Using redirect for mobile/in-app browser');
-                auth.signInWithRedirect(googleProvider)
-                    .catch(handleSignInError);
-                return;
-            }
-
-            // Untuk desktop, coba popup dengan fallback ke redirect
-            console.log('Trying popup for desktop');
-            auth.signInWithPopup(googleProvider)
-                .then((result) => {
-                    console.log('Popup login berhasil:', result.user.displayName);
-                })
-                .catch((error) => {
-                    console.error('Popup error:', error);
-                    
-                    // Jika popup gagal, coba redirect
-                    if (error.code === 'auth/popup-blocked' || 
-                        error.code === 'auth/popup-closed-by-user' ||
-                        error.code === 'auth/cancelled-popup-request') {
-                        
-                        console.log('Popup failed, falling back to redirect...');
-                        auth.signInWithRedirect(googleProvider)
-                            .catch(handleSignInError);
-                    } else {
-                        handleSignInError(error);
-                    }
-                })
-                .finally(() => {
-                    resetLoginButton();
-                });
-        }
-
-        function handleSignInError(error) {
-            console.error('Sign-in error:', error);
-            
-            let errorMessage = 'Terjadi kesalahan saat login.';
-            
-            switch(error.code) {
-                case 'auth/unauthorized-domain':
-                    errorMessage = `Domain tidak diotorisasi: ${window.location.origin}\n\nTambahkan domain ini ke Firebase Console:\nAuthentication → Settings → Authorized domains`;
-                    break;
-                case 'auth/network-request-failed':
-                    errorMessage = 'Periksa koneksi internet Anda.';
-                    break;
-                case 'auth/popup-blocked':
-                    errorMessage = 'Popup diblokir browser. Aktifkan popup untuk situs ini.';
-                    break;
-                case 'auth/operation-not-allowed':
-                    errorMessage = 'Google Sign-in tidak diaktifkan di Firebase Console.';
-                    break;
-                case 'auth/invalid-api-key':
-                    errorMessage = 'API Key Firebase tidak valid.';
-                    break;
-                default:
-                    errorMessage = `Error: ${error.code}\n${error.message}`;
-            }
-            
-            alert(errorMessage);
-            resetLoginButton();
-        }
-
-        function resetLoginButton() {
-            loginBtn.disabled = false;
-            loginBtn.innerHTML = `
-                <svg aria-hidden="true" height="20" viewBox="0 0 24 24" width="20">
-                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4"></path>
-                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"></path>
-                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"></path>
-                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"></path>
-                    <path d="M1 1h22v22H1z" fill="none"></path>
-                </svg>
-                <span>Login dengan Google</span>
-            `;
-        }
-
-        // Event listeners
-        loginBtn.addEventListener('click', handleGoogleSignIn);
+        loginBtn.addEventListener('click', () => auth.signInWithRedirect(googleProvider));
         logoutBtn.addEventListener('click', () => auth.signOut());
 
         // --- FIRESTORE & CORE LOGIC ---
