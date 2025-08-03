@@ -3,14 +3,14 @@ document.addEventListener('DOMContentLoaded', () => {
     try {
         // --- KONFIGURASI FIREBASE ANDA ---
         const firebaseConfig = {
-  apiKey: "AIzaSyAfNMqqY1oYJK9uV63MRBRRBxCgzT3dI-g",
-  authDomain: "cakra-brankas-pribadi.firebaseapp.com",
-  projectId: "cakra-brankas-pribadi",
-  storageBucket: "cakra-brankas-pribadi.firebasestorage.app",
-  messagingSenderId: "973097679765",
-  appId: "1:973097679765:web:d242994d12560b4fdfd49c",
-  measurementId: "G-99RFT3FN8Q"
-};
+            apiKey: "AIzaSyAfNMqqY1oYJK9uV63MRBRRBxCgzT3dI-g",
+            authDomain: "cakra-brankas-pribadi.firebaseapp.com",
+            projectId: "cakra-brankas-pribadi",
+            storageBucket: "cakra-brankas-pribadi.firebasestorage.app",
+            messagingSenderId: "973097679765",
+            appId: "1:973097679765:web:d242994d12560b4fdfd49c",
+            measurementId: "G-99RFT3FN8Q"
+        };
 
         // --- INITIALIZE FIREBASE ---
         firebase.initializeApp(firebaseConfig);
@@ -19,7 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const googleProvider = new firebase.auth.GoogleAuthProvider();
 
         // --- ELEMENT SELECTORS ---
-        const loadingOverlay = document.getElementById('loading-overlay'); // [MODIFIKASI]
+        const loadingOverlay = document.getElementById('loading-overlay');
         const loginScreen = document.getElementById('login-screen');
         const keyScreen = document.getElementById('key-screen');
         const appContainer = document.getElementById('app-container');
@@ -84,58 +84,44 @@ document.addEventListener('DOMContentLoaded', () => {
         }
 
         // --- AUTHENTICATION & KEY MANAGEMENT ---
-        // [MODIFIKASI] LOGIKA BARU UNTUK MENGATASI LOGIN LOOP
         function handleAuth() {
-            // Sembunyikan semua layar utama terlebih dahulu
             loginScreen.classList.add('hidden');
             keyScreen.classList.add('hidden');
             appContainer.classList.add('hidden');
             
-            // Cek dulu hasil dari proses redirect login
             auth.getRedirectResult()
                 .then(result => {
-                    // Jika ada `result.user`, berarti pengguna baru saja berhasil login via redirect.
-                    // Kita tidak perlu melakukan apa-apa, karena onAuthStateChanged akan menanganinya.
                     if (result.user) {
                         console.log("Redirect result berhasil didapatkan untuk:", result.user.displayName);
                     }
-                    // Jika tidak ada `result.user`, berarti pengguna mungkin sudah login dari sesi sebelumnya
-                    // atau memang belum login sama sekali.
                 })
                 .catch(error => {
-                    // Tangani error jika terjadi saat mengambil hasil redirect
                     console.error("Error saat getRedirectResult:", error);
-                    // Jika gagal, pastikan layar loading hilang dan tampilkan layar login
                     loadingOverlay.classList.add('hidden');
                     loginScreen.classList.remove('hidden');
                 });
 
-            // Listener utama yang memantau status login
             auth.onAuthStateChanged(user => {
-                // Setelah pengecekan selesai, sembunyikan layar loading
                 loadingOverlay.classList.add('hidden');
                 
                 if (user) {
-                    // Pengguna terdeteksi login
                     state.currentUser = user;
                     loginScreen.classList.add('hidden');
-                    keyScreen.classList.remove('hidden'); // Tampilkan layar kunci enkripsi
+                    keyScreen.classList.remove('hidden');
                     checkEncryptionKeySetup(user);
                 } else {
-                    // Pengguna tidak login
                     state.currentUser = null;
                     if (state.unsubscribe) state.unsubscribe();
                     sessionEncryptionKey = null;
                     keyScreen.classList.add('hidden');
                     appContainer.classList.add('hidden');
-                    loginScreen.classList.remove('hidden'); // Tampilkan layar login
+                    loginScreen.classList.remove('hidden');
                     state.entries = [];
-                    renderApp(); // Render ulang untuk membersihkan tampilan
+                    renderApp();
                 }
             });
         }
         
-        // Panggil fungsi otentikasi utama saat aplikasi dimuat
         handleAuth();
 
         function checkEncryptionKeySetup(user) {
@@ -322,7 +308,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             mainContent.appendChild(noteContent);
             
-            const noteActions = createActionButtons(entry, noteContent);
+            const noteActions = createActionButtons(entry, noteContentElement);
             noteCard.appendChild(mainContent);
             noteCard.appendChild(noteActions);
             return noteCard;
