@@ -2,11 +2,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Jaring pengaman untuk menangkap semua error saat inisialisasi
     try {
         // --- KONFIGURASI FIREBASE ANDA ---
+        // [MODIFIKASI] Menggunakan format .appspot.com pada storageBucket sebagai upaya perbaikan
         const firebaseConfig = {
             apiKey: "AIzaSyAfNMqqY1oYJK9uV63MRBRRBxCgzT3dI-g",
             authDomain: "cakra-brankas-pribadi.firebaseapp.com",
             projectId: "cakra-brankas-pribadi",
-            storageBucket: "cakra-brankas-pribadi.firebasestorage.app",
+            storageBucket: "cakra-brankas-pribadi.appspot.com", // <-- PERUBAHAN DI SINI
             messagingSenderId: "973097679765",
             appId: "1:973097679765:web:d242994d12560b4fdfd49c",
             measurementId: "G-99RFT3FN8Q"
@@ -96,7 +97,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                 })
                 .catch(error => {
-                    console.error("Error saat getRedirectResult:", error);
+                    console.error("KRITIS: Error saat getRedirectResult:", error);
                     loadingOverlay.classList.add('hidden');
                     loginScreen.classList.remove('hidden');
                 });
