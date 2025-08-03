@@ -17,6 +17,22 @@ body {
     margin: 0;
 }
 
+/* NEW: Critical Error Display Styles */
+#critical-error-display {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    background-color: var(--danger-color);
+    color: white;
+    padding: 1rem;
+    text-align: center;
+    font-family: 'Source Code Pro', monospace;
+    font-size: 0.9rem;
+    z-index: 9999;
+    box-sizing: border-box;
+}
+
 /* Login & Key Screen Styles */
 #login-screen, #key-screen {
     display: flex; align-items: center; justify-content: center;
