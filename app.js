@@ -172,11 +172,11 @@ document.addEventListener('DOMContentLoaded', () => {
             state.entries = encryptedDocs.map(ed => {
                 if (!ed.encryptedContent) return null;
                 const decryptedContent = decrypt(ed.encryptedContent, sessionEncryptionKey);
-                // Convert Firestore Timestamps to JS Dates for sorting
+                // Convert Firestore Timestamps to JS numbers for sorting
                 const createdAt = ed.createdAt ? ed.createdAt.toMillis() : 0;
                 const updatedAt = ed.updatedAt ? ed.updatedAt.toMillis() : 0;
                 return decryptedContent ? { ...ed, content: decryptedContent, createdAt, updatedAt } : null;
-            }).filter(Boolean);
+            }).filter(Boolean); // Filter out any failed decryptions
             renderApp();
         }, error => console.error("Error fetching entries:", error));
     }
@@ -189,7 +189,12 @@ document.addEventListener('DOMContentLoaded', () => {
         notesContainer.innerHTML = '';
         let entriesToRender = state.activeFilter ? state.entries.filter(e => e.tags && e.tags.includes(state.activeFilter)) : state.entries;
         
-        const sortedEntries = entriesToRender.sort((a, b) => (b.isPinned - a.isPinned) || (b.updatedAt - a.updatedAt));
+        // BUG FIX: Ensure updatedAt is a number before sorting
+        const sortedEntries = entriesToRender.sort((a, b) => {
+            const aTime = a.updatedAt || 0;
+            const bTime = b.updatedAt || 0;
+            return (b.isPinned - a.isPinned) || (bTime - aTime);
+        });
 
         if (sortedEntries.length === 0) {
             notesContainer.innerHTML = state.activeFilter 
